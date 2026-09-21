@@ -42,6 +42,8 @@ const visitHome = () => {
       win.localStorage.setItem('home:enhancedDiscover:dismissed', 'true');
     },
   });
+  cy.location('pathname').should('include', '/app/home');
+  cy.get('.contentManagement-page').should('be.visible');
 };
 
 const getVisibleNav = () =>
@@ -62,53 +64,29 @@ const createWorkspace = (feature) => {
 
 /**
  * Helper to ensure the left navigation panel is expanded.
- * Resets the persisted collapsed state in localStorage and,
- * if the nav is still collapsed after reload, clicks the
- * expand button to open it.
+ * Pins the navigation open using ChromeService's persisted setting.
+ * Reloading applies the setting to both classic and observability navigation.
  */
 const ensureNavExpanded = (feature = 'all') => {
-  // Force the persisted nav state to expanded
-  cy.window().then((win) => {
-    const key = 'core.chrome.isNavExpanded';
-    if (win.localStorage.getItem(key) === 'false') {
-      win.localStorage.setItem(key, 'true');
-      cy.reload();
-    }
-  });
-
   if (isWorkspaceEnabled) {
-    // Wait for the target workspace before inspecting controls from its nav layout.
+    // Wait for the target workspace before changing its navigation state.
+    cy.location('pathname').should('include', `/w/${workspaceId}/`);
     cy.getElementByTestId('breadcrumbs').should(
       'contain',
       `${workspaceName}_${feature}`
     );
   }
 
-  getVisibleNav().should('exist');
-
-  // If the nav panel is still collapsed, click the expand button
-  cy.get('body').then(($body) => {
-    if (
-      $body.find('[data-test-subj="collapsibleNavExpandButton"]:visible')
-        .length > 0
-    ) {
-      cy.getElementByTestId('collapsibleNavExpandButton')
-        .filter(':visible')
-        .click();
-    } else if ($body.find('.navToggleInLargeScreen').length > 0) {
-      cy.get('.navToggleInLargeScreen')
-        .should('be.visible')
-        .click({ force: true });
-    } else if (
-      $body.find('[data-test-subj="collapsibleNavShrinkButton"]').length === 0
-    ) {
-      // Nav is collapsed (no shrink button visible means we're in collapsed view)
-      // Look for any expand trigger in the collapsed nav
-      if ($body.find('.bottom-container-collapsed').length > 0) {
-        cy.get('.bottom-container-collapsed').click({ force: true });
-      }
+  // Force the persisted nav state to expanded
+  cy.window().then((win) => {
+    const key = 'core.chrome.isLocked';
+    if (win.localStorage.getItem(key) !== 'true') {
+      win.localStorage.setItem(key, 'true');
+      cy.reload();
     }
   });
+
+  getVisibleNav().should('exist');
 
   // Verify the nav is actually expanded by checking for expanded content
   getVisibleNav()
@@ -262,7 +240,7 @@ describe('Left navigation menu', () => {
   beforeEach(() => {
     // Reset persisted nav collapse state so tests start with nav expanded
     cy.window().then((win) => {
-      win.localStorage.removeItem('core.chrome.isNavExpanded');
+      win.localStorage.removeItem('core.chrome.isLocked');
     });
   });
 
