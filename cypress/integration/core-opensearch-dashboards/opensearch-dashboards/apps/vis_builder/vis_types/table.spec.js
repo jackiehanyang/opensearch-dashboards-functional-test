@@ -70,9 +70,7 @@ if (Cypress.env('VISBUILDER_ENABLED')) {
 }
 
 export const testMetric = (value) => {
-  cy.getElementByTestId('dataGridRowCell')
-    .find('[class="euiDataGridRowCell__truncate"]')
-    .should('contain.text', value);
+  cy.getElementByTestId('tableVisCellDataField').should('contain.text', value);
 };
 
 export const testSplitRows = (valueArray) => {

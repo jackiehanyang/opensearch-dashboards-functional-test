@@ -31,8 +31,12 @@ export const createSampleDetector = (createButtonDataTestSubj) => {
 
   cy.getElementByTestId('overviewTitle').should('exist');
   cy.getElementByTestId('viewSampleDetectorLink').should('not.exist');
+  cy.intercept('POST', '**/api/anomaly_detectors/detectors/*/start').as(
+    'startSampleDetector'
+  );
   cy.getElementByTestId(createButtonDataTestSubj).click();
-  cy.visit(AD_URL.OVERVIEW);
+  // Stay on the page while it creates the sample index, data, and detector.
+  cy.wait('@startSampleDetector').its('response.body.ok').should('eq', true);
 
   // Check that the details page defaults to real-time, and shows detector is initializing
   cy.getElementByTestId('viewSampleDetectorLink').click();

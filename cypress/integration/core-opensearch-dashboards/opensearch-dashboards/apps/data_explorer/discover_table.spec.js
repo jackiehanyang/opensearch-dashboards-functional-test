@@ -325,6 +325,9 @@ describe('Saved Search Embeddables', () => {
         `/app/dashboards#/create?_g=(filters:!(),time:(from:'2015-09-19T13:31:44.000Z',to:'2015-09-24T01:31:44.000Z'))`
       );
       cy.get('[data-test-subj="dashboardAddPanelButton"]').click();
+      cy.get('[data-test-subj="savedObjectFinderSearchInput"]')
+        .clear()
+        .type('Legacy Saved Search');
       cy.get('[data-test-subj="savedObjectTitleLegacy-Saved-Search"]').click();
       cy.get('[data-test-subj="euiFlyoutCloseButton"]').click();
       cy.get('[data-test-subj="docTableHeader-@timestamp"]').should(

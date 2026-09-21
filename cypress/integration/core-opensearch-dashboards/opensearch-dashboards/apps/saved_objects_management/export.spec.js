@@ -33,7 +33,7 @@ const searchSavedObjects = (search) => {
     pathname: FIND_OBJECTS_API,
     query: { search: `${search}*` },
   }).as('searchSavedObjects');
-  cy.getElementByTestId('savedObjectSearchBar').type(`${search}{enter}`);
+  cy.getElementByTestId('savedObjectSearchBar').type(search).trigger('search');
   cy.wait('@searchSavedObjects').its('response.statusCode').should('eq', 200);
 };
 

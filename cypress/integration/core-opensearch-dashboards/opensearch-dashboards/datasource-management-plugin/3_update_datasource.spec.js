@@ -99,10 +99,24 @@ if (Cypress.env('DATASOURCE_MANAGEMENT_ENABLED')) {
 
     describe('validation: Originally datasource credential type is "No Authentication"', () => {
       before(() => {
+        // The invalid-ID redirect already shows a listing; wait for the new visit.
+        cy.intercept({
+          method: 'GET',
+          pathname: '**/api/saved_objects/_find',
+          query: { type: 'data-source' },
+        }).as('reloadDataSources');
         cy.visitDataSourcesListingPage();
+        cy.wait('@reloadDataSources')
+          .its('response.statusCode')
+          .should('eq', 200);
         checkIfTableIsLoaded();
-        clickOnTableRowTitleColumnByValue(DS_JSON.attributes.title);
-        cy.get('[name="dataSourceTitle"]').should('exist');
+        cy.contains('tbody a', DS_JSON.attributes.title)
+          .should('be.visible')
+          .click();
+        cy.get('[name="dataSourceTitle"]').should(
+          'have.value',
+          DS_JSON.attributes.title
+        );
       });
       it('should make sure that title field is required & does not accept duplicates', () => {
         /* Required */

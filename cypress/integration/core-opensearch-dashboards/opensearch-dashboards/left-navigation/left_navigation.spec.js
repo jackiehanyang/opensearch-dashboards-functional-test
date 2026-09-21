@@ -66,7 +66,7 @@ const createWorkspace = (feature) => {
  * if the nav is still collapsed after reload, clicks the
  * expand button to open it.
  */
-const ensureNavExpanded = () => {
+const ensureNavExpanded = (feature = 'all') => {
   // Force the persisted nav state to expanded
   cy.window().then((win) => {
     const key = 'core.chrome.isNavExpanded';
@@ -75,6 +75,14 @@ const ensureNavExpanded = () => {
       cy.reload();
     }
   });
+
+  if (isWorkspaceEnabled) {
+    // Wait for the target workspace before inspecting controls from its nav layout.
+    cy.getElementByTestId('breadcrumbs').should(
+      'contain',
+      `${workspaceName}_${feature}`
+    );
+  }
 
   getVisibleNav().should('exist');
 
@@ -117,7 +125,7 @@ if (isWorkspaceEnabled) {
       cy.visit(`w/${workspaceId}/app/discover`);
       cy.get('.content', { timeout: 60000 }).should('exist');
 
-      ensureNavExpanded();
+      ensureNavExpanded(feature);
 
       getVisibleNav().within(() => {
         cy.getElementByTestId('workspace-selector-current-name')
