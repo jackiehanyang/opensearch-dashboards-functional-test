@@ -25,9 +25,6 @@ describe('Banner Plugin', () => {
   });
 
   beforeEach(() => {
-    // Set welcome screen tracking to false
-    localStorage.setItem('home:welcome:show', 'false');
-
     //clear advanced settings
     cy.setAdvancedSetting({
       'banner:active': null,
@@ -37,7 +34,12 @@ describe('Banner Plugin', () => {
       'banner:useMarkdown': null,
     });
 
-    cy.visit('/');
+    cy.visit('/', {
+      onBeforeLoad(win) {
+        win.localStorage.setItem('home:welcome:show', 'false');
+        win.localStorage.setItem('home:enhancedDiscover:dismissed', 'true');
+      },
+    });
     cy.contains('Home', { timeout: BANNER_TIMEOUT }).should('be.visible');
   });
 

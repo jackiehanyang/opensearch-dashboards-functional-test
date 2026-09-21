@@ -136,28 +136,23 @@ jobs:
           working-directory: cypress-test
           command: ${{ inputs.test-command }}
           wait-on: 'http://localhost:5601'
-      - name: Upload OpenSearch Dashboards logs
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
-        if: always()
-        with:
-          name: opensearch-dashboards-logs-security-${{ env.SECURITY_ENABLED }}
-          path: opensearch-dashboards-${{ env.VERSION }}/opensearch-dashboards.*.log
-          if-no-files-found: ignore
       # Screenshots are only captured on failure, will change this once we do visual regression tests
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         if: failure()
         with:
-          name: cypress-screenshots
+          name: cypress-screenshots-security-${{ env.SECURITY_ENABLED }}
           path: cypress-test/cypress/screenshots
       # Test run video was always captured, so this action uses "always()" condition
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         if: always()
         with:
-          name: cypress-videos
+          name: cypress-videos-security-${{ env.SECURITY_ENABLED }}
           path: cypress-test/cypress/videos
       # Test reports was always captured, so this action uses "always()" condition
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         if: always()
         with:
-          name: cypress-results
-          path: cypress-test/cypress/results
+          name: cypress-results-security-${{ env.SECURITY_ENABLED }}
+          path: |
+            cypress-test/cypress/results
+            opensearch-dashboards-${{ env.VERSION }}/opensearch-dashboards.*.log

@@ -12,12 +12,12 @@ describe('console app', () => {
 }`.trim();
 
   beforeEach(() => {
-    cy.visit('/app/dev_tools#/console', {
-      onBeforeLoad(win) {
-        // Show the welcome panel even when an earlier test dismissed it.
-        win.localStorage.removeItem('sense:version_welcome_shown');
-      },
+    cy.visit('/app/dev_tools#/console');
+    cy.window().then((win) => {
+      win.localStorage.removeItem('sense:version_welcome_shown');
     });
+    // Visiting the same hash URL can reuse the page; reload to show the welcome panel.
+    cy.reload();
     cy.getElementByTestId('help-close-button').click();
     cy.getElementByTestId('request-editor').should('be.visible');
   });

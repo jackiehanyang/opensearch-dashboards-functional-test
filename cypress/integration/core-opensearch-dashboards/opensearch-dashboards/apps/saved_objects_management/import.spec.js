@@ -46,6 +46,16 @@ const cleanupTestObjects = () => {
   cy.deleteSavedObject('visualization', 'test-visualization-id');
 };
 
+const visitSavedObjects = () => {
+  cy.intercept({
+    method: 'GET',
+    pathname: '**/api/opensearch-dashboards/management/saved_objects/_find',
+  }).as('findSavedObjects');
+  cy.visit(SAVED_OBJECTS_PATH);
+  cy.wait('@findSavedObjects').its('response.statusCode').should('eq', 200);
+  cy.getElementByTestId('savedObjectSearchBar').should('be.enabled');
+};
+
 describe('Saved Objects Import', () => {
   beforeEach(() => {
     cleanupTestObjects();
@@ -122,9 +132,10 @@ describe('Saved Objects Import', () => {
     });
   });
 
-  describe('UI', () => {
+  // Each test must mount a fresh table after the API fixture setup.
+  describe('UI', { testIsolation: true }, () => {
     it('should import saved objects via UI', () => {
-      cy.visit(SAVED_OBJECTS_PATH);
+      visitSavedObjects();
       cy.getElementByTestId('importObjects').click();
       cy.get('.euiFlyout').should('exist');
 
@@ -150,7 +161,7 @@ describe('Saved Objects Import', () => {
     });
 
     it('should show import flyout with correct elements', () => {
-      cy.visit(SAVED_OBJECTS_PATH);
+      visitSavedObjects();
       cy.getElementByTestId('importObjects').click();
 
       cy.get('.euiFlyout').within(() => {
@@ -163,7 +174,7 @@ describe('Saved Objects Import', () => {
 
     it('should handle import with overwrite', () => {
       cy.importSavedObjects(FIXTURE_PATH);
-      cy.visit(SAVED_OBJECTS_PATH);
+      visitSavedObjects();
       cy.getElementByTestId('importObjects').click();
 
       cy.fixture(FIXTURE_PATH, 'binary').then((fileContent) => {

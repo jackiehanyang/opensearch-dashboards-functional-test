@@ -236,6 +236,9 @@ context('Create remote forecaster workflow', () => {
       cy.contains('.euiComboBoxOption__content', remoteIndex).click();
       cy.getElementByTestId('indicesFilter').should('contain', remoteIndex);
       cy.wait('@remoteMappings').its('response.statusCode').should('eq', 200);
+      cy.getElementByTestId('indicesFilter')
+        .find('[aria-label="Close list of options"]')
+        .click();
 
       cy.getElementByTestId('timestampFilter').type(
         `${TEST_TIMESTAMP_FIELD}{enter}`

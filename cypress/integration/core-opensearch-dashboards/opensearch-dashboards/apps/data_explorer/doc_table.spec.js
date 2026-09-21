@@ -24,6 +24,8 @@ describe('discover doc table', { testIsolation: false }, () => {
       'cypress/fixtures/dashboard/opensearch_dashboards/data_explorer/logstash/logstash.json.txt'
     );
 
+    // Earlier Discover specs may have already created this shared fixture.
+    cy.deleteIndexPattern('logstash-*', { failOnStatusCode: false });
     cy.createIndexPattern('logstash-*', {
       title: 'logstash-*',
       timeFieldName: '@timestamp',

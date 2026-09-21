@@ -7,37 +7,53 @@ import { CURRENT_TENANT } from '../../../utils/commands';
 
 if (Cypress.env('SECURITY_ENABLED')) {
   describe('Copy Link functionality working', () => {
-    it('Tests the link copys and can be routed to in Safari', () => {
+    it('copies a share link that opens Discover', () => {
       CURRENT_TENANT.newTenant = 'global';
 
       cy.visit(STACK_MANAGEMENT_PATH);
       cy.waitForLoader();
+      const isChromium = Cypress.isBrowser({ family: 'chromium' });
+      if (isChromium) {
+        // Headless Chromium requires explicit permission to read the real clipboard.
+        cy.then(() =>
+          Cypress.automation('remote:debugger:protocol', {
+            command: 'Browser.grantPermissions',
+            params: {
+              permissions: ['clipboardReadWrite', 'clipboardSanitizedWrite'],
+              origin: new URL(Cypress.config('baseUrl')).origin,
+            },
+          })
+        );
+        cy.then(() =>
+          Cypress.automation('remote:debugger:protocol', {
+            command: 'Emulation.setFocusEmulationEnabled',
+            params: { enabled: true },
+          })
+        );
+        cy.window().then((win) => {
+          win.focus();
+          return win.navigator.clipboard.writeText('');
+        });
+      }
       cy.getElementByTestId('toggleNavButton').click();
       cy.get('span[title="Discover"]').click();
       cy.getElementByTestId('shareTopNavButton').click();
-      cy.getElementByTestId('copyShareUrlButton').click();
+      if (isChromium) {
+        cy.getElementByTestId('copyShareUrlButton').realClick();
+      } else {
+        cy.getElementByTestId('copyShareUrlButton').click();
+      }
 
-      // Capture the copied content
-      cy.window().then((win) => {
-        // Access the clipboard contents
-        cy.document().then(() => {
-          cy.wait(1000); // Wait for clipboard data to be available
-          cy.log('Trying to read clipboard data...');
-
-          // Read the clipboard text
-          cy.wrap(win.navigator.clipboard.readText()).then((clipboardData) => {
-            cy.log('url copied:', clipboardData);
-
-            // Assert that the clipboard has data
-            expect(clipboardData).to.have.length.greaterThan(0);
-
-            cy.visit(clipboardData);
-            cy.waitForLoader();
-
-            // Now on copied URL page
-          });
+      cy.window()
+        .then((win) => win.navigator.clipboard.readText())
+        .then((clipboardData) => {
+          expect(new URL(clipboardData).origin).to.equal(
+            new URL(Cypress.config('baseUrl')).origin
+          );
+          cy.visit(clipboardData);
+          cy.waitForLoader();
+          cy.location('pathname').should('include', 'discover');
         });
-      });
     });
   });
 }

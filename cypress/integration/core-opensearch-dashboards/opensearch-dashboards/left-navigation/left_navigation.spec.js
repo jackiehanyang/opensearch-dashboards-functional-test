@@ -44,6 +44,9 @@ const visitHome = () => {
   });
 };
 
+const getVisibleNav = () =>
+  cy.getElementByTestId('collapsibleNav').filter(':visible');
+
 const createWorkspace = (feature) => {
   return cy
     .createWorkspace({
@@ -73,11 +76,18 @@ const ensureNavExpanded = () => {
     }
   });
 
-  cy.get('.left-navigation-wrapper').should('exist');
+  getVisibleNav().should('exist');
 
   // If the nav panel is still collapsed, click the expand button
   cy.get('body').then(($body) => {
-    if ($body.find('.navToggleInLargeScreen').length > 0) {
+    if (
+      $body.find('[data-test-subj="collapsibleNavExpandButton"]:visible')
+        .length > 0
+    ) {
+      cy.getElementByTestId('collapsibleNavExpandButton')
+        .filter(':visible')
+        .click();
+    } else if ($body.find('.navToggleInLargeScreen').length > 0) {
       cy.get('.navToggleInLargeScreen')
         .should('be.visible')
         .click({ force: true });
@@ -93,10 +103,13 @@ const ensureNavExpanded = () => {
   });
 
   // Verify the nav is actually expanded by checking for expanded content
-  cy.get('.left-navigation-wrapper', { timeout: 60000 })
-    .find('input[type="search"], .euiAccordion__button', { timeout: 60000 })
+  getVisibleNav()
+    .find(
+      'input[type="search"], .euiAccordion__button, [data-test-subj="obsExpandedNav"]',
+      { timeout: 60000 }
+    )
     .first()
-    .should('exist');
+    .should('be.visible');
 };
 if (isWorkspaceEnabled) {
   const validateWorkspaceNavMenu = (feature, callbackFn) => {
@@ -106,16 +119,24 @@ if (isWorkspaceEnabled) {
 
       ensureNavExpanded();
 
-      cy.get('.left-navigation-wrapper').within(() => {
-        cy.contains(`${workspaceName}_${feature}`).should('be.visible');
-        cy.get('input[type="search"]').should('be.visible');
-        // Scroll to make "Manage workspace" visible - it may be overflowed by other elements
-        cy.contains(/Manage workspace/)
-          .scrollIntoView({ offset: { top: -100, left: 0 } })
+      getVisibleNav().within(() => {
+        cy.getElementByTestId('workspace-selector-current-name')
+          .should('contain', `${workspaceName}_${feature}`)
           .should('be.visible');
-
         callbackFn();
       });
+
+      // Workspace controls are now grouped in the navigation footer.
+      getVisibleNav()
+        .find('[data-test-subj="manageWorkspaceMenuButton"]')
+        .click();
+      cy.getElementByTestId('manageWorkspaceMenuPopover')
+        .should('be.visible')
+        .contains('Workspace details')
+        .should('be.visible');
+      getVisibleNav()
+        .find('[data-test-subj="manageWorkspaceMenuButton"]')
+        .click();
     });
   };
 

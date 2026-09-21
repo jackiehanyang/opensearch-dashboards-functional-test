@@ -7,6 +7,8 @@ import { BASE_PATH } from '../../../../../utils/constants';
 
 const SAVED_OBJECTS_PATH = `${BASE_PATH}/app/management/opensearch-dashboards/objects`;
 const EXPORT_API = '/api/saved_objects/_export';
+const FIND_OBJECTS_API =
+  '**/api/opensearch-dashboards/management/saved_objects/_find';
 const FIXTURE_PATH =
   'dashboard/opensearch_dashboards/saved_objects_management/test_saved_objects.ndjson';
 
@@ -14,6 +16,25 @@ const cleanupTestObjects = () => {
   cy.deleteSavedObject('index-pattern', 'test-index-pattern-id');
   cy.deleteSavedObject('dashboard', 'test-dashboard-id');
   cy.deleteSavedObject('visualization', 'test-visualization-id');
+};
+
+const visitSavedObjects = () => {
+  cy.intercept({ method: 'GET', pathname: FIND_OBJECTS_API }).as(
+    'findSavedObjects'
+  );
+  cy.visit(SAVED_OBJECTS_PATH);
+  cy.wait('@findSavedObjects').its('response.statusCode').should('eq', 200);
+  cy.getElementByTestId('savedObjectSearchBar').should('be.enabled');
+};
+
+const searchSavedObjects = (search) => {
+  cy.intercept({
+    method: 'GET',
+    pathname: FIND_OBJECTS_API,
+    query: { search: `${search}*` },
+  }).as('searchSavedObjects');
+  cy.getElementByTestId('savedObjectSearchBar').type(`${search}{enter}`);
+  cy.wait('@searchSavedObjects').its('response.statusCode').should('eq', 200);
 };
 
 describe('Saved Objects Export', () => {
@@ -91,9 +112,10 @@ describe('Saved Objects Export', () => {
     });
   });
 
-  describe('UI', () => {
+  // Each test must mount a fresh table after the API fixture setup.
+  describe('UI', { testIsolation: true }, () => {
     it('should export all saved objects via UI', () => {
-      cy.visit(SAVED_OBJECTS_PATH);
+      visitSavedObjects();
       cy.getElementByTestId('savedObjectsTable').should('exist');
       cy.getElementByTestId('exportAllObjects').click();
 
@@ -106,22 +128,18 @@ describe('Saved Objects Export', () => {
     });
 
     it('should export selected saved objects via UI', () => {
-      cy.visit(SAVED_OBJECTS_PATH);
+      visitSavedObjects();
       cy.getElementByTestId('savedObjectsTable').should('exist');
 
-      cy.getElementByTestId('savedObjectSearchBar').type('Test{enter}');
-      cy.wait(1000);
+      searchSavedObjects('Test');
 
       cy.get('.euiTableRow .euiCheckbox__input').first().check({ force: true });
       cy.get('button').contains('Export').should('not.be.disabled');
     });
 
     it('should display saved objects in table', () => {
-      cy.visit(SAVED_OBJECTS_PATH);
-      cy.getElementByTestId('savedObjectSearchBar').type(
-        'Test Dashboard{enter}'
-      );
-      cy.wait(1000);
+      visitSavedObjects();
+      searchSavedObjects('Test Dashboard');
 
       cy.getElementByTestId('savedObjectsTableRowTitle').should(
         'contain',
@@ -130,11 +148,11 @@ describe('Saved Objects Export', () => {
     });
 
     it('should filter saved objects by type', () => {
-      cy.visit(SAVED_OBJECTS_PATH);
+      visitSavedObjects();
       cy.getElementByTestId('savedObjectsTable').should('exist');
 
       cy.get('.euiFilterButton').contains('Type').click();
-      cy.get('.euiFilterSelectItem').contains('dashboard').click();
+      cy.contains('button[role="option"]', /^dashboard \(/).click();
       cy.get('body').click(0, 0);
 
       cy.getElementByTestId('savedObjectsTableRowTitle').should(
