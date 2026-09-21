@@ -80,7 +80,7 @@ jobs:
         with:
           opensearch-version: ${{ env.VERSION }}
           security-enabled: true
-          admin-password: admin
+          admin-password: ${{ env.OPENSEARCH_INITIAL_ADMIN_PASSWORD }}
           port: 9202
       - name: Get and run OpenSearch-Dashboards
         run: |
