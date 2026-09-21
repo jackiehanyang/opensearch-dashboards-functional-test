@@ -60,7 +60,9 @@ const clickControlAndVerifyChartUpdate = (buttonAriaLabel) => {
     });
 };
 
-describe('Daily interval forecaster', () => {
+// TODO: Re-enable once daily forecast chart interactions are stable in CI.
+// https://github.com/opensearch-project/anomaly-detection-dashboards-plugin/issues/1244
+describe.skip('Daily interval forecaster', () => {
   before(() => {
     // Clean up any old indices
     cy.deleteAllIndices();

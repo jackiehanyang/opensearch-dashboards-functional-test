@@ -27,7 +27,9 @@ context('Sample detectors', () => {
     createSampleDetector('createECommerceSampleDetectorButton');
   });
 
-  it('Host health sample detector - create and delete', () => {
+  // TODO: Re-enable once Host health sample creation is stable in CI.
+  // https://github.com/opensearch-project/anomaly-detection-dashboards-plugin/issues/1244
+  it.skip('Host health sample detector - create and delete', () => {
     createSampleDetector('createHostHealthSampleDetectorButton');
   });
 });

@@ -42,7 +42,9 @@ const setAbsoluteStartDate = (startDate) => {
   );
 };
 
-context('Create remote forecaster workflow', () => {
+// TODO: Re-enable once remote index selection is stable in CI.
+// https://github.com/opensearch-project/anomaly-detection-dashboards-plugin/issues/1244
+context.skip('Create remote forecaster workflow', () => {
   // Clean up created resources
   afterEach(() => {
     cy.deleteAllIndices();
