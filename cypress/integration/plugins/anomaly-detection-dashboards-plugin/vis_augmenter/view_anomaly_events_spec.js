@@ -67,6 +67,7 @@ describe('View anomaly events in flyout', () => {
   afterEach(() => {});
 
   it('Action does not exist if there are no VisLayers for a visualization', () => {
+    cy.visitDashboard(dashboardName);
     cy.getVisPanelByTitle(visualizationName)
       .openVisContextMenu()
       .getMenuItems()

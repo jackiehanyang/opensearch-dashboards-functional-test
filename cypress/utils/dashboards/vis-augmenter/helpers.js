@@ -130,17 +130,15 @@ const setXAxisDateHistogram = () => {
 /**
  * From the vis edit view, return to the dashboard
  */
-const saveVisualizationAndReturn = (visualizationName) => {
-  cy.getElementByTestId('visualizeEditorRenderButton').click({
-    force: true,
-  });
-  cy.getElementByTestId('visualizeSaveButton').click({
-    force: true,
-  });
+const saveVisualizationAndReturn = (visualizationName, visType) => {
+  // The default Vega spec has no pending edits to apply.
+  if (visType !== 'vega') {
+    cy.getElementByTestId('visualizeEditorRenderButton').click();
+  }
+  // Saving is disabled until the editor has applied the visualization changes.
+  cy.getElementByTestId('visualizeSaveButton').click();
   cy.getElementByTestId('savedObjectTitle').type(visualizationName);
-  cy.getElementByTestId('confirmSaveSavedObjectButton').click({
-    force: true,
-  });
+  cy.getElementByTestId('confirmSaveSavedObjectButton').click();
 };
 
 /**
@@ -225,7 +223,7 @@ export const createVisualizationFromDashboard = (
     }
     setXAxisDateHistogram();
   }
-  saveVisualizationAndReturn(visualizationName);
+  saveVisualizationAndReturn(visualizationName, visType);
 };
 
 /**

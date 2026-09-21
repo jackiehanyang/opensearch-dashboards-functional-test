@@ -12,6 +12,26 @@ const TEST_TIMESTAMP_FIELD = 'timestamp';
 const TEST_VALUE_FIELD = 'value';
 const TEST_HOST_FIELD = 'host';
 
+const interceptForecastResults = () => {
+  // Match only the next result fetch so a later wait cannot consume an older
+  // request from the previous test or date range.
+  cy.intercept({
+    method: 'GET',
+    pathname: '**/api/forecasting/forecasters/*/results/true/*',
+    times: 1,
+  }).as('forecastResults');
+};
+
+const waitForForecastResults = () => {
+  cy.wait('@forecastResults', { timeout: 180000 })
+    .its('response.statusCode')
+    .should('eq', 200);
+  // The chart keeps loading while it retries results after the first response.
+  cy.contains('Loading forecast results...', { timeout: 180000 }).should(
+    'not.exist'
+  );
+};
+
 const setAbsoluteStartDate = (startDate) => {
   cy.getElementByTestId('superDatePickerShowDatesButton').click();
   cy.getElementByTestId('superDatePickerAbsoluteTab').first().click();
@@ -19,36 +39,25 @@ const setAbsoluteStartDate = (startDate) => {
     .first()
     .clear()
     .type(startDate);
+  interceptForecastResults();
   cy.getElementByTestId('superDatePickerApplyTimeButton').click();
-  cy.contains('Loading forecast results...', { timeout: 180000 }).should(
-    'not.exist'
-  );
+  waitForForecastResults();
 };
 
 const clickControlAndVerifyChartUpdate = (buttonAriaLabel) => {
-  cy.get('body').then(($body) => {
-    // Only proceed if the button exists and is not disabled
-    if (
-      $body.find(`button[aria-label="${buttonAriaLabel}"]:not(:disabled)`)
-        .length > 0
-    ) {
-      // Get the render count before clicking
-      cy.get('.echChartStatus')
-        .invoke('attr', 'data-ech-render-count')
-        .then((initialRenderCount) => {
-          // Re-check disabled state right before clicking to avoid TOCTOU race
-          cy.get(`button[aria-label="${buttonAriaLabel}"]`).then(($btn) => {
-            if (!$btn.is(':disabled')) {
-              cy.wrap($btn).click();
+  cy.get('.echChartStatus')
+    .should('have.attr', 'data-ech-render-complete', 'true')
+    .invoke('attr', 'data-ech-render-count')
+    .then((initialRenderCount) => {
+      cy.get(`button[aria-label="${buttonAriaLabel}"]`)
+        .should('be.enabled')
+        .click();
 
-              cy.get('.echChartStatus')
-                .invoke('attr', 'data-ech-render-count')
-                .should('not.eq', initialRenderCount);
-            }
-          });
-        });
-    }
-  });
+      cy.get('.echChartStatus')
+        .should('have.attr', 'data-ech-render-complete', 'true')
+        .invoke('attr', 'data-ech-render-count')
+        .should('not.eq', initialRenderCount);
+    });
 };
 
 describe('Daily interval forecaster', () => {
@@ -113,6 +122,7 @@ describe('Daily interval forecaster', () => {
 
   it('should create, test, and interact with a daily forecaster', () => {
     // Create and test forecaster.
+    interceptForecastResults();
     cy.visit(FORECAST_URL.CREATE_FORECASTER);
 
     cy.request({
@@ -144,32 +154,27 @@ describe('Daily interval forecaster', () => {
 
     // Now that the forecaster is created, test its functionality.
     cy.contains('Test complete', { timeout: 180000 }).should('be.visible');
-    cy.contains('Loading forecast results...', { timeout: 180000 }).should(
-      'not.exist'
-    );
+    waitForForecastResults();
 
     // Check results from 2020 to now using the super date picker.
     setAbsoluteStartDate('2020-01-01 00:00:00');
 
     // Click 'Start test' button and trigger test again.
+    interceptForecastResults();
     cy.getElementByTestId('startCancelTestButton').click();
     // In case previous test complete message hasn't disappeared, wait for it to disappear
     // before checking for the new test complete message.
     cy.contains('Initializing test', { timeout: 180000 }).should('be.visible');
     cy.contains('Test complete', { timeout: 180000 }).should('be.visible');
-    cy.contains('Loading forecast results...', { timeout: 180000 }).should(
-      'not.exist'
-    );
+    waitForForecastResults();
 
     // Check results from 2020 to now using the super date picker.
     setAbsoluteStartDate('2020-01-01 00:00:00');
 
-    // If pan left/right is not disabled, click one and check for changes.
-    clickControlAndVerifyChartUpdate('Pan right');
-    clickControlAndVerifyChartUpdate('Pan left');
-
-    // If zoom in/out is not disabled, click one and check for changes.
+    // Zoom in first to make room to pan and zoom back out.
     clickControlAndVerifyChartUpdate('Zoom in');
+    clickControlAndVerifyChartUpdate('Pan left');
+    clickControlAndVerifyChartUpdate('Pan right');
     clickControlAndVerifyChartUpdate('Zoom out');
   });
 });
