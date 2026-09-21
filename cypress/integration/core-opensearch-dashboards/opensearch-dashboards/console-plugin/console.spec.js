@@ -3,10 +3,6 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { MiscUtils } from '@opensearch-dashboards-test/opensearch-dashboards-test-library';
-
-const miscUtils = new MiscUtils(cy);
-
 describe('console app', () => {
   const DEFAULT_REQUEST = `GET _search
 {
@@ -16,11 +12,14 @@ describe('console app', () => {
 }`.trim();
 
   beforeEach(() => {
-    // Navigate to the console page before each test
-    miscUtils.visitPage('/app/dev_tools#/console');
-    // Assuming there's a method to collapse the help pane in your page objects or you directly use a command here
-    cy.getElementByTestId('help-close-button').click({ force: true });
-    cy.wait(1000);
+    cy.visit('/app/dev_tools#/console', {
+      onBeforeLoad(win) {
+        // Show the welcome panel even when an earlier test dismissed it.
+        win.localStorage.removeItem('sense:version_welcome_shown');
+      },
+    });
+    cy.getElementByTestId('help-close-button').click();
+    cy.getElementByTestId('request-editor').should('be.visible');
   });
 
   it('should show the default request', () => {

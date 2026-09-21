@@ -104,7 +104,7 @@ jobs:
           echo "vis_builder.enabled: true" >> config/opensearch_dashboards.yml
           echo "data_source.enabled: true" >> config/opensearch_dashboards.yml
           echo "banner.enabled: true" >> config/opensearch_dashboards.yml
-          echo 'banner.content: "This is an important announcement for all users. [Learn more](http://opensearch.org) about OpenSearch."' >> config/opensearch_dashboards.yml
+          echo 'banner.content: "This is an important announcement for all users. [Learn more](https://opensearch.org) about OpenSearch."' >> config/opensearch_dashboards.yml
           # echo "data_source.encryption.wrappingKeyName: 'changeme'" >> config/opensearch_dashboards.yml
           # echo "data_source.encryption.wrappingKeyNamespace: 'changeme'" >> config/opensearch_dashboards.yml
           # echo "data_source.encryption.wrappingKey: [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0]" >> config/opensearch_dashboards.yml
@@ -114,7 +114,7 @@ jobs:
               echo "Remove Dashboards Security"
               ./bin/opensearch-dashboards-plugin.bat remove securityDashboards
               sed -i /^opensearch_security/d config/opensearch_dashboards.yml
-              sed -i 's/https/http/' config/opensearch_dashboards.yml
+              sed -i '/^opensearch.hosts:/s/https/http/g' config/opensearch_dashboards.yml
               bin/opensearch-dashboards.bat &
               timeout 300 bash -c 'while [[ "$(curl http://localhost:5601/api/status | jq -r '.status.overall.state')" != "green" ]]; do echo sleeping 5; sleep 5; done'
               curl -s http://localhost:5601/api/status | jq

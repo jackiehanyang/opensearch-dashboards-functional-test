@@ -215,13 +215,19 @@ context('Create remote forecaster workflow', () => {
         `${remoteClusterName} (Cross cluster connection)`
       ).click();
 
-      cy.getElementByTestId('indicesFilter').type(`${TEST_INDEX_NAME}{enter}`);
-      // avoid "element is detached from the DOM" error due to clicking before UI re-render
-      cy.wait(500);
+      // Wait for the remote option before selecting; Enter can commit a local
+      // index or create an option before the async search finishes.
+      cy.getElementByTestId('indicesFilter').type(REMOTE_TEST_INDEX_NAME);
       cy.contains(
         '.euiComboBoxOption__content',
         `${remoteClusterName}:${REMOTE_TEST_INDEX_NAME}`
-      ).click({ force: true });
+      )
+        .should('be.visible')
+        .click();
+      cy.getElementByTestId('indicesFilter').should(
+        'contain',
+        `${remoteClusterName}:${REMOTE_TEST_INDEX_NAME}`
+      );
       cy.wait(1500);
 
       cy.getElementByTestId('timestampFilter').type(
