@@ -61,6 +61,10 @@ describe('discover filter editor', () => {
         'contain.text',
         'jpg'
       );
+      // Opening the editor focuses the field; dismiss suggestions covering Cancel.
+      cy.getElementByTestId('filterFieldSuggestionList')
+        .find('[data-test-subj="comboBoxSearchInput"]')
+        .type('{esc}');
       cy.getElementByTestId('cancelSaveFilter').click();
     });
 

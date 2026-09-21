@@ -88,6 +88,11 @@ if (Cypress.env('DATASOURCE_MANAGEMENT_ENABLED')) {
       it('should navigate to details page by URL and show error when id is invalid', () => {
         cy.visitDataSourcesListingPage();
         cy.visit(`${detailsPageURL}64fa3`);
+        // Wait for the failed lookup and redirect before starting another visit.
+        cy.contains('Unable to find the Data Source.').should('be.visible');
+        cy.contains('Create and manage data source connections.').should(
+          'be.visible'
+        );
         cy.get('[name="dataSourceTitle"]').should('not.exist');
       });
     });

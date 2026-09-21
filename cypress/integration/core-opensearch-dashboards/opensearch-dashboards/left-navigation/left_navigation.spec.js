@@ -3,11 +3,46 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
+import { CURRENT_TENANT } from '../../../../utils/commands';
+
 const isWorkspaceEnabled = Cypress.env('WORKSPACE_ENABLED');
 const workspaceName = `test_nav_menu`;
 const workspaceDescription =
   'This is a test workspace for left navigation menu.';
 let workspaceId;
+let previousNewHomePage;
+let restoreNewHomePage = false;
+
+before(() => {
+  cy.request({
+    url: '/api/opensearch-dashboards/settings',
+    qs: Cypress.env('SECURITY_ENABLED')
+      ? { security_tenant: CURRENT_TENANT.defaultTenant }
+      : {},
+  }).then(({ body }) => {
+    const setting = body.settings['home:useNewHomePage'];
+    if (setting?.userValue !== true) {
+      previousNewHomePage = setting?.userValue ?? null;
+      restoreNewHomePage = true;
+      cy.setAdvancedSetting({ 'home:useNewHomePage': true });
+    }
+  });
+});
+
+after(() => {
+  if (restoreNewHomePage) {
+    cy.setAdvancedSetting({ 'home:useNewHomePage': previousNewHomePage });
+  }
+});
+
+const visitHome = () => {
+  cy.visit('app/home', {
+    onBeforeLoad(win) {
+      // Keep the first-visit experience notice from covering the navigation.
+      win.localStorage.setItem('home:enhancedDiscover:dismissed', 'true');
+    },
+  });
+};
 
 const createWorkspace = (feature) => {
   return cy
@@ -252,7 +287,7 @@ describe('Left navigation menu', () => {
         validateMenuSection();
       });
     } else {
-      cy.visit('app/home');
+      visitHome();
       validateMenuSection();
     }
   });
@@ -287,7 +322,7 @@ describe('Left navigation menu', () => {
         validateMenuState();
       });
     } else {
-      cy.visit('app/home');
+      visitHome();
       validateMenuState();
     }
   });
@@ -393,7 +428,7 @@ describe('Left navigation menu', () => {
       });
     } else {
       cy.loadSampleData('ecommerce').then(() => {
-        cy.visit('app/home');
+        visitHome();
         validateRecentHistory();
       });
     }

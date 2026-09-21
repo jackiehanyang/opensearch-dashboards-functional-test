@@ -103,24 +103,23 @@ jobs:
           # Temporary solution to add vis_builder and data_source enabled parameters
           echo "vis_builder.enabled: true" >> config/opensearch_dashboards.yml
           echo "data_source.enabled: true" >> config/opensearch_dashboards.yml
+          echo "data_source.ssl.verificationMode: none" >> config/opensearch_dashboards.yml
           echo "banner.enabled: true" >> config/opensearch_dashboards.yml
           echo 'banner.content: "This is an important announcement for all users. [Learn more](https://opensearch.org) about OpenSearch."' >> config/opensearch_dashboards.yml
           # echo "data_source.encryption.wrappingKeyName: 'changeme'" >> config/opensearch_dashboards.yml
           # echo "data_source.encryption.wrappingKeyNamespace: 'changeme'" >> config/opensearch_dashboards.yml
           # echo "data_source.encryption.wrappingKey: [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0]" >> config/opensearch_dashboards.yml
-          # Not useful now as error shows when trying to force a background run with parameters on Windows
-          # bin/opensearch-dashboards.bat serve ${{ inputs.osd-serve-args }} &
           if [ "$SECURITY_ENABLED" = 'false' ]; then
               echo "Remove Dashboards Security"
               ./bin/opensearch-dashboards-plugin.bat remove securityDashboards
               sed -i /^opensearch_security/d config/opensearch_dashboards.yml
               sed -i '/^opensearch.hosts:/s/https/http/g' config/opensearch_dashboards.yml
-              bin/opensearch-dashboards.bat &
+              bin/opensearch-dashboards.bat > opensearch-dashboards.stdout.log 2> opensearch-dashboards.stderr.log &
               timeout 300 bash -c 'while [[ "$(curl http://localhost:5601/api/status | jq -r '.status.overall.state')" != "green" ]]; do echo sleeping 5; sleep 5; done'
               curl -s http://localhost:5601/api/status | jq
           else
               echo "Keep Dashboards Security"
-              bin/opensearch-dashboards.bat &
+              bin/opensearch-dashboards.bat > opensearch-dashboards.stdout.log 2> opensearch-dashboards.stderr.log &
               timeout 300 bash -c 'while [[ "$(curl -k http://localhost:5601/api/status -u admin:${{ env.OPENSEARCH_INITIAL_ADMIN_PASSWORD }} | jq -r '.status.overall.state')" != "green" ]]; do echo sleeping 5; sleep 5; done'
               curl -sk localhost:5601/api/status -u admin:${{ env.OPENSEARCH_INITIAL_ADMIN_PASSWORD }} | jq
           fi
@@ -137,6 +136,13 @@ jobs:
           working-directory: cypress-test
           command: ${{ inputs.test-command }}
           wait-on: 'http://localhost:5601'
+      - name: Upload OpenSearch Dashboards logs
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        if: always()
+        with:
+          name: opensearch-dashboards-logs-security-${{ env.SECURITY_ENABLED }}
+          path: opensearch-dashboards-${{ env.VERSION }}/opensearch-dashboards.*.log
+          if-no-files-found: ignore
       # Screenshots are only captured on failure, will change this once we do visual regression tests
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         if: failure()

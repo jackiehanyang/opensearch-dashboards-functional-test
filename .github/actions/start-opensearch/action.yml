@@ -157,6 +157,7 @@ runs:
 
     # Give the OpenSearch process some time to boot up before sending any requires, might need to increase the default time!
     - name: Sleep while OpenSearch starts
+      if: ${{ runner.os != 'Windows' }}
       uses: peternied/action-sleep@7472dd1367f502fffd8b22251e44b0ac1a89ed80 # v1
       with:
         seconds: 30
@@ -186,7 +187,20 @@ runs:
           $Headers = @{ }
           $url = 'http://localhost:${{ inputs.port || 9200 }}/_cat/plugins'
         }
-        Invoke-WebRequest -SkipCertificateCheck -Uri $url -Headers $Headers;
+        $deadline = [DateTime]::UtcNow.AddMinutes(5)
+        do {
+          try {
+            $response = Invoke-WebRequest -SkipCertificateCheck -Uri $url -Headers $Headers -TimeoutSec 10 -ErrorAction Stop
+            if ($response.StatusCode -eq 200) {
+              Write-Output $response.Content
+              exit 0
+            }
+          } catch {
+            Write-Host "Waiting for OpenSearch at ${url}: $($_.Exception.Message)"
+          }
+          Start-Sleep -Seconds 5
+        } while ([DateTime]::UtcNow -lt $deadline)
+        throw "OpenSearch at $url did not return HTTP 200 within 5 minutes."
       shell: pwsh
       working-directory: ${{ inputs.port }}
 

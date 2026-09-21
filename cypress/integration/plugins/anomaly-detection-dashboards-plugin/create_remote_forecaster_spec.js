@@ -201,6 +201,7 @@ context('Create remote forecaster workflow', () => {
 
     it('Full creation - based on remote index', () => {
       const remoteClusterName = Cypress.env('remoteClusterName');
+      const remoteIndex = `${remoteClusterName}:${REMOTE_TEST_INDEX_NAME}`;
 
       // Define forecaster step
       cy.visit(FORECAST_URL.CREATE_FORECASTER);
@@ -209,26 +210,32 @@ context('Create remote forecaster workflow', () => {
         `${TEST_FORECASTER_REMOTE_NAME}{enter}`
       );
 
+      cy.intercept({
+        method: 'GET',
+        pathname: '**/api/anomaly_detectors/_indices_and_aliases',
+        query: { clusters: remoteClusterName, indexOrAliasQuery: '' },
+      }).as('remoteIndices');
       cy.getElementByTestId('clustersFilter').click();
       cy.contains(
         '.euiComboBoxOption__content',
         `${remoteClusterName} (Cross cluster connection)`
       ).click();
-
-      // Wait for the remote option before selecting; Enter can commit a local
-      // index or create an option before the async search finishes.
-      cy.getElementByTestId('indicesFilter').type(REMOTE_TEST_INDEX_NAME);
-      cy.contains(
-        '.euiComboBoxOption__content',
-        `${remoteClusterName}:${REMOTE_TEST_INDEX_NAME}`
-      )
-        .should('be.visible')
+      cy.wait('@remoteIndices').its('response.statusCode').should('eq', 200);
+      cy.getElementByTestId('clustersFilter')
+        .find('[aria-label="Close list of options"]')
         .click();
-      cy.getElementByTestId('indicesFilter').should(
-        'contain',
-        `${remoteClusterName}:${REMOTE_TEST_INDEX_NAME}`
-      );
-      cy.wait(1500);
+
+      // Cluster selection already loads the remote options. Starting another
+      // search here can replace the option while Cypress is clicking it.
+      cy.intercept({
+        method: 'GET',
+        pathname: '**/api/anomaly_detectors/_mappings',
+        query: { indices: remoteIndex },
+      }).as('remoteMappings');
+      cy.getElementByTestId('indicesFilter').click();
+      cy.contains('.euiComboBoxOption__content', remoteIndex).click();
+      cy.getElementByTestId('indicesFilter').should('contain', remoteIndex);
+      cy.wait('@remoteMappings').its('response.statusCode').should('eq', 200);
 
       cy.getElementByTestId('timestampFilter').type(
         `${TEST_TIMESTAMP_FIELD}{enter}`
