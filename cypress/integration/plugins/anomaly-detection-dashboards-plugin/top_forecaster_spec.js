@@ -139,6 +139,80 @@ context('top forecaster api', () => {
         cy.contains('No data to display', { timeout: 18000 }).should(
           'not.exist'
         );
+
+        // The split time series "Update visualization" control is driven by the
+        // Top Forecasters API (_topForecasts), which "queries and ranks EXISTING
+        // forecast results". That control therefore cannot render until per-entity
+        // forecast results have actually been written to the results index. On
+        // slower/older builds these entity-level results can lag behind the
+        // "Test complete" milestone, so the button never appears and a blind wait
+        // on it just times out. Poll the results index for this entity first so we
+        // only drive the split-time-series UI once there is data for it to rank.
+        const entityResultsQuery = {
+          size: 1,
+          query: {
+            nested: {
+              path: 'entity',
+              query: {
+                bool: {
+                  must: [
+                    { term: { 'entity.name': 'host' } },
+                    { term: { 'entity.value': 'host_2' } },
+                  ],
+                },
+              },
+            },
+          },
+        };
+
+        const waitForEntityForecastResults = (
+          retryCount = 0,
+          maxRetries = 60
+        ) => {
+          cy.request({
+            method: 'POST',
+            url: 'api/console/proxy',
+            headers: {
+              'content-type': 'application/json;charset=UTF-8',
+              'osd-xsrf': true,
+            },
+            qs: {
+              path: 'opensearch-forecast-result*/_search',
+              method: 'POST',
+            },
+            body: entityResultsQuery,
+            // The results index may not exist yet immediately after creation.
+            failOnStatusCode: false,
+          }).then((response) => {
+            const hitsTotal = response?.body?.hits?.total;
+            const total =
+              typeof hitsTotal === 'object'
+                ? hitsTotal?.value ?? 0
+                : hitsTotal ?? 0;
+
+            if (total > 0) {
+              return;
+            }
+
+            if (retryCount >= maxRetries) {
+              throw new Error(
+                `No forecast results found for entity host_2 in ` +
+                  `opensearch-forecast-result* after ${maxRetries} retries. The ` +
+                  `Top Forecasters (_topForecasts) split view cannot render ` +
+                  `without existing per-entity results.`
+              );
+            }
+
+            return cy
+              .wait(2000)
+              .then(() =>
+                waitForEntityForecastResults(retryCount + 1, maxRetries)
+              );
+          });
+        };
+
+        waitForEntityForecastResults();
+
         cy.getElementByTestId('splitTimeSeriesOptionsButton').click();
         cy.get('[aria-label="Filter by"]').select('custom');
         cy.getElementByTestId('customQueryModal').should('be.visible');
@@ -165,13 +239,16 @@ context('top forecaster api', () => {
         cy.getElementByTestId('addOrUpdateCustomQueryButton').click();
         cy.getElementByTestId('customQueryModal').should('not.exist');
 
-        // The update visualization button sometimes is not rendered yet after the modal closes,
-        // causing flaky failures. Keep reopening the options panel until the button is visible.
-        // This poll stops once the button is visible, otherwise it continues until the overall
-        // Cypress test timeout (the it timeout or global config) aborts the test.
-        const waitForUpdateVisualizationButton = (
+        // Ensure the split time series options popover is open and its
+        // "Update visualization" button is visible. The button lives inside the
+        // popover, so once forecast results exist (see waitForEntityForecastResults
+        // above) opening the popover renders it. Only click the options button when
+        // the update button is entirely absent from the DOM (popover closed) —
+        // clicking while the popover is already open would toggle it shut, which is
+        // the flakiness the earlier retry loop suffered from.
+        const ensureUpdateVisualizationButtonVisible = (
           retryCount = 0,
-          maxRetries = 60
+          maxRetries = 30
         ) => {
           cy.get('body').then(($body) => {
             const updateButton = $body.find(
@@ -188,23 +265,29 @@ context('top forecaster api', () => {
               );
             }
 
-            const splitOptionsButton = $body.find(
-              '[data-test-subj="splitTimeSeriesOptionsButton"]'
-            );
-
-            if (splitOptionsButton.length) {
-              cy.wrap(splitOptionsButton).click({ force: true });
+            // Only (re)open the popover when the button is not in the DOM at all.
+            // If it is present but not yet visible, just wait for it to render.
+            if (!updateButton.length) {
+              const splitOptionsButton = $body.find(
+                '[data-test-subj="splitTimeSeriesOptionsButton"]'
+              );
+              if (splitOptionsButton.length) {
+                cy.wrap(splitOptionsButton).click({ force: true });
+              }
             }
 
             return cy
               .wait(1000)
               .then(() =>
-                waitForUpdateVisualizationButton(retryCount + 1, maxRetries)
+                ensureUpdateVisualizationButtonVisible(
+                  retryCount + 1,
+                  maxRetries
+                )
               );
           });
         };
 
-        waitForUpdateVisualizationButton();
+        ensureUpdateVisualizationButtonVisible();
 
         cy.getElementByTestId('updateVisualizationButton')
           .should('be.visible')
